@@ -12,7 +12,6 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-
 Route::middleware(CheckAuth::class)->group(function () {
     // Authentication
     Route::prefix('/auth')->group(function () {
@@ -48,8 +47,12 @@ Route::middleware(CheckAuth::class)->group(function () {
             Route::get('/products', [AdminPanelController::class, 'showAllProductsGet'])->name('adminShowAllProductsGet');
             Route::get('/products/add', [AdminPanelController::class, 'addProductGet'])->name('adminAddProductGet');
             Route::post('/products/add', [AdminPanelController::class, 'addProductPost'])->name('adminAddProductPost');
+            Route::get('/product/{product_id}/update', [AdminPanelController::class, 'updateProductGet'])->name('adminUpdateProductGet');
+            Route::put('/product/{product_id}/update', [AdminPanelController::class, 'updateProductPut'])->name('adminUpdateProductPut');
+            Route::get('/product/{product_id}/delete', [AdminPanelController::class, 'deleteProductDelete'])->name('adminDeleteProductDelete');
 
-            Route::get('storage', [AdminPanelController::class, 'showAllStorageGet'])->name('adminShowAllStorageGet');
+            Route::get('/storage', [AdminPanelController::class, 'showAllStorageGet'])->name('adminShowAllStorageGet');
+            Route::put('/storage', [AdminPanelController::class, 'updateStoragePut'])->name('adminUpdateStoragePut');
         });
     });
     
