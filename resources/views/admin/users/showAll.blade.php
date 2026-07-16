@@ -16,8 +16,8 @@
             <td>{{ $user->name }}</td>
             <td>{{ $user->email }}</td>
             <td>{{ $user->role }}</td>
-            <td><a href="{{ route('adminUpdateUserGet', ['id'=>$user->id]) }}">E</a></td>
-            <td><a href="{{ route('adminDeleteUserDelete', ['id'=>$user->id]) }}">D</a></td>
+            <td><a href="{{ route('adminUpdateUserGet', ['id'=>$user->id]) }}">enter</a></td>
+            <td><a href="{{ route('adminDeleteUserDelete', ['id'=>$user->id]) }}">delete</a></td>
         </tr>
         @endforeach
     </table>

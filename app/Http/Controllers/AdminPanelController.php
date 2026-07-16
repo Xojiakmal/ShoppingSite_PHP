@@ -17,9 +17,13 @@ class AdminPanelController extends Controller
 {
     function dashboard(Request $request) {
         $User = new User();
+        $Category = new Category();
+        $Product = new Product();
 
         $user_data = $User->where('role', 'user')->get(['name', 'email']);
-        $category_data = Category::all();
+        $category_data = $Category->all();
+        $product_data = $Product->all();
+
 
         return view('admin.dashboard', [
             'informations' =>[
@@ -30,6 +34,10 @@ class AdminPanelController extends Controller
                 'categories' =>[
                     'count' =>count($category_data),
                     'categories' =>$category_data
+                ],
+                'products' =>[
+                    'count' =>count($product_data),
+                    'products' =>$product_data
                 ]
             ]
         ]);
@@ -127,8 +135,6 @@ class AdminPanelController extends Controller
         
 
         $category_data = $Category->where('parent_id', $parent_id)->get()->reverse();
-        
-        // dd($category_data->modelKeys() == null);
 
         return view('admin.categories.showAll', ['category_data' =>$category_data]);
     }
@@ -156,14 +162,33 @@ class AdminPanelController extends Controller
 
     function deleteCategoryDelete(Request $request, $category_id) {
         $Category = new Category();
+        $Product = new Product();
+        $Storage = new Storage();
 
-        $category_data = $Category->find($category_id);
+        try {
+            DB::beginTransaction();
 
-        if (isset($category_data->id)) {
-            $category_data->delete();
+            $category_data = $Category->find($category_id);
+
+            if (isset($category_data->id)) {
+                $product_data = $Product->where('category_id', $category_data->id)->get();
+                $storage_data = $Storage->whereIn('product_id', $product_data->modelKeys())->get();
+
+                if ($storage_data->modelKeys() != null) {
+                    $Storage->whereIn('id', $storage_data->modelKeys())->delete();
+                }
+                if($product_data->modelKeys() != null) {
+                    $Product->whereIn('id', $product_data->modelKeys())->delete();
+                }
+                $category_data->delete();
+            }
+
+            DB::commit();
+        } catch (Exception $th) {
+            DB::rollBack();
         }
 
-        return redirect()->route('adminShowAllCategoriesGet');
+        return back();
     }
 
     // Control products
@@ -226,6 +251,91 @@ class AdminPanelController extends Controller
         return redirect()->route('adminShowAllProductsGet');
     }
 
+    function updateProductGet(Request $request, $product_id) {
+        if (!is_numeric($product_id)) {
+            return redirect()->route('adminDashboard');
+        }
+
+        $Product = new Product();
+        $Category = new Category();
+
+        $category_data = $Category->all()->reverse();
+
+        $product_data = $Product->find($product_id);
+        
+        if ($product_data == null) {
+            return redirect()->route('adminDashboard');
+        }
+
+        // $filtered_data = $product_data->only(['id', 'product_name', 'description', 'price', 'category_id']);
+        // dd($product_data);
+
+        return view('admin.products.updateProduct', ['product_data' =>$product_data, 'category_data' =>$category_data]);
+    }
+    
+    function updateProductPut(Request $request, $product_id) {
+        if (!is_numeric($product_id)) {
+            return redirect()->route('adminDashboard');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'product_name' =>'required|string',
+            'price' =>'required|integer',
+            'slug' =>'required|string',
+            'category_id' =>'required|integer',
+            'description' =>'string|nullable'
+        ]);
+        $validated = $validator->validated();
+        // dd($validator);
+
+
+        try {
+            DB::beginTransaction();
+            $Product = new Product();
+
+            $product_data = $Product->find($product_id);
+
+            $product_data->product_name = $validated['product_name'];
+            $product_data->price = $validated['price'];
+            $product_data->slug = $validated['slug'];
+            $product_data->category_id = $validated['category_id'];
+            $product_data->description = $validated['description'];
+
+            $product_data->save();
+
+            DB::commit();
+        } catch (\Exception $th) {
+            DB::rollBack();
+        }
+        
+        return redirect()->route('adminShowAllProductsGet');
+    }
+
+    function deleteProductDelete(Request $request, $product_id) {
+        if (!is_numeric($product_id)) {
+            return redirect()->route('adminDashboard');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $Product = new Product();
+            $Storage = new Storage();
+
+            $product_data = $Product->find($product_id);
+            $storage_data = $Storage->where('product_id', $product_data->id)->first();
+
+            $storage_data->delete();
+            $product_data->delete();
+
+            DB::commit();
+        } catch (\Exception $th) {
+            DB::rollBack();
+        }
+
+        return redirect()->route('adminShowAllProductsGet');
+    }
+
     // Control storage
     function showAllStorageGet(Request $request) {
         $Storage = new Storage();
@@ -235,9 +345,32 @@ class AdminPanelController extends Controller
         return view('admin.storage.showAll', ['storage_data' =>$storage_data]);
     }
 
-    function addProductToStoragePut(Request $request) {
+    function updateStoragePut(Request $request) {
         $validator = Validator::make($request->all(), [
-            ''
+            'sign' =>'required|in:+,-',
+            'quantity' =>'required|integer',
+            'chosen_product' =>'required|integer'
         ]);
+
+        $validated = $validator->validated();
+
+        $Storage = new Storage();
+
+        $storage_data = $Storage->find($validated['chosen_product']);
+        
+        if ($validated['sign'] == '+') {
+            $storage_data->quantity += $validated['quantity'];
+        }
+        elseif ($storage_data->quantity >= $validated['quantity']) {
+            $storage_data->quantity -= $validated['quantity'];
+        }
+        else {
+            $validator->errors()->add('basic', "You cannot withdraw more than the quantity in the storage");
+            $validator->validated();
+        }
+
+        $storage_data->save();
+
+        return redirect()->route('adminShowAllStorageGet');
     }
 }
