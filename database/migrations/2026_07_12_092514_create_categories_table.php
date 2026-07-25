@@ -14,7 +14,9 @@ return new class extends Migration
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
             $table->string('category_name');
+            $table->string('slug');
             $table->foreignId('parent_id')->nullable()->constrained('categories')->cascadeOnDelete();
+            $table->enum('rank', ['hight', 'medium', 'low']);
             $table->timestamps();
         });
     }

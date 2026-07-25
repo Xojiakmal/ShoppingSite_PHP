@@ -3,14 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminPanelController;
+use App\Http\Controllers\BasicPagesController;
 use App\Http\Middleware\CheckAuth;
 use App\Http\Middleware\CheckAdminPermission;
 use App\Http\Middleware\CheckSuperadminPermission;
 
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [BasicPagesController::class, 'mainPage']);
 
 Route::middleware(CheckAuth::class)->group(function () {
     // Authentication
@@ -55,10 +54,4 @@ Route::middleware(CheckAuth::class)->group(function () {
             Route::put('/storage', [AdminPanelController::class, 'updateStoragePut'])->name('adminUpdateStoragePut');
         });
     });
-    
 });
-    
-
-Route::get('/test', function () {
-    return "ishlaydi";
-})->name('main')->middleware(CheckAdminPermission::class);

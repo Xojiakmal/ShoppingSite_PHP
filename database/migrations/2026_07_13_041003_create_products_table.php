@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('product_name');
             $table->text('description')->nullable();
-            $table->foreignId('category_id')->constrained()->casecadeOnDelete();
+            $table->string('category');
             $table->integer('price');
             $table->string('slug')->unique();
             $table->timestamps();

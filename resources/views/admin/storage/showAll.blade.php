@@ -12,6 +12,9 @@
         </p>
         <input type="text" name="quantity" placeholder="Quantity"><br>
         <input type="submit" value="Save">
+        @if(session('seccess'))
+            {{ session('success') }}
+        @endif
         <table border='1px'>
             <tr>
                 <th>id</th>

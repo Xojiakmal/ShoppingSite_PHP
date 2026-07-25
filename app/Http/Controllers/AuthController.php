@@ -46,7 +46,7 @@ class AuthController extends Controller
 
     function signupPost(Request $request) {
         $validator = Validator::make($request->all(), [
-            'name' =>'required|alpha',
+            'name' =>'required|regex:/^[A-Za-z\']+$/',
             'email' =>'required|unique:users|email',
             'pass1' =>'required|min:6',
             'pass2' =>'required|min:6'
@@ -63,12 +63,21 @@ class AuthController extends Controller
 
         $User = new User();
 
+        $user_count = $User->all()->modelKeys();
+
+        if($user_count == null) {
+            $role = 'superadmin';
+        }
+        else {
+            $role = 'user';
+        }
+
         $hashed_pass = Hash::make($validated['pass1']);
 
         $User->name = $validated['name'];
         $User->email = $validated['email'];
         $User->password = $hashed_pass;
-        $User->role = 'user';
+        $User->role = $role;
 
         $User->save();
 
