@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+// use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\Category;
 use App\Models\Product;
@@ -74,7 +74,7 @@ class AdminPanelController extends Controller
 
     function updateUserPut(Request $request, $user_id) {
         $validator = Validator::make($request->all(), [
-            'name' =>'required|alpha',
+            'name' =>'required|regex:/^[A-Za-z\']+$/',
             'email' =>'required|email',
             'pass' =>'min:6|nullable',
             'role' =>'required|in:user,admin',
@@ -102,7 +102,7 @@ class AdminPanelController extends Controller
 
         $user_data->save();
 
-        return redirect()->route('adminShowAllUsers');
+        return redirect()->route('adminShowAllUsers')->with('success', 'Updated successfully');
     }
 
     function deleteUserDelete(Request $request, $user_id) {
@@ -124,40 +124,101 @@ class AdminPanelController extends Controller
             DB::rollBack();
         }
 
-        return redirect()->route('adminShowAllUsers');
+        return redirect()->route('adminShowAllUsers')->with('success', 'Deleted successfully');
     }
 
     // Control categories
     function showAllCategoriesGet(Request $request) {
         $Category = new Category();
+        $category_id = $request->query('pi');
 
-        $parent_id = $request->query('pi', null);
-        
+        if ($category_id != null && is_numeric($category_id)) {
 
-        $category_data = $Category->where('parent_id', $parent_id)->get()->reverse();
+            $p_category_data = $Category->find($category_id);
 
-        return view('admin.categories.showAll', ['category_data' =>$category_data]);
+            if (!isset($p_category_data->id)) {
+                return view('admin.categories.showAll');
+            }
+
+            $category_data = $Category->where('parent_id', $category_id)->get()->reverse();
+            
+            if (!isset($category_data->first()->id)) {
+                return view('admin.categories.showAll');
+            }
+        }
+        else {
+            $category_data = $Category->where('parent_id', null)->get()->reverse();
+
+            return view('admin.categories.showAll', [
+                'category_data' =>$category_data,
+                'rank' => [
+                    'name' =>'hight',
+                    'id' =>1
+                ]
+            ]);
+        }
+
+        $ranks = [
+            'hight' =>1,
+            'medium' =>2,
+            'low' =>3
+        ];
+
+        // dd($category_data->first());
+
+        return view('admin.categories.showAll', [
+            'category_data' =>$category_data,
+            'rank' => [
+                'name' =>$category_data->first()->rank,
+                'id' =>$ranks[$category_data->first()->rank]
+            ]
+        ]);
     }
 
     function addCategoryPost(Request $request) {
         $validator = Validator::make($request->all(), [
-            'category_name' =>'required|alpha',
-            'category_parent' =>'nullable|numeric'
+            'category_name' =>'required|regex:/^[\pL\s\']+$/',
+            'category_parent' =>'nullable|integer',
+            'rank' =>'required|in:1,2,3'
         ]);
 
         $validated = $validator->validated();
         $Category = new Category();
 
-        // dd($validated);
-
+        
         $Category->category_name = $validated['category_name'];
+        $Category->slug = str($validated['category_name'])->slug('-') . '-?';
         if (isset($validated['category_parent'])) {
+            $check_parent = $Category->find($validated['category_parent']);
+            
+            $ranks = [
+                '1' =>'hight',
+                '2' =>'medium',
+                '3' =>'low'
+            ];
+            if($check_parent->rank != $ranks[$validated['rank']] || !(
+                ($check_parent->rank == 'hight' && $validated['rank'] == '1') ||
+                ($check_parent->rank == 'medium' && $validated['rank'] == '2')
+            )) {
+                // dd($validated);
+                $validator->errors()->add('rank', 'Something is invalid');
+                $validator->validated();
+            }
+            $Category->rank = $ranks[$validated['rank']+1];
+
             $Category->parent_id = $validated['category_parent'];
+        }
+        else {
+            $Category->rank = 'hight';
         }
 
         $Category->save();
 
-        return redirect()->route('adminShowAllCategoriesGet');
+        $Category->slug = str_replace('?', $Category->id, $Category->slug);
+        $Category->save();
+
+        return redirect()->route('adminShowAllCategoriesGet')->with('success', 'Created successfully');
+
     }
 
     function deleteCategoryDelete(Request $request, $category_id) {
@@ -171,7 +232,7 @@ class AdminPanelController extends Controller
             $category_data = $Category->find($category_id);
 
             if (isset($category_data->id)) {
-                $product_data = $Product->where('category_id', $category_data->id)->get();
+                $product_data = $Product->where('category', $category_data->slug)->get();
                 $storage_data = $Storage->whereIn('product_id', $product_data->modelKeys())->get();
 
                 if ($storage_data->modelKeys() != null) {
@@ -184,11 +245,11 @@ class AdminPanelController extends Controller
             }
 
             DB::commit();
-        } catch (Exception $th) {
+        } catch (\Exception $th) {
             DB::rollBack();
         }
 
-        return back();
+        return redirect()->route('adminShowAllCategoriesGet')->with('success', 'Deleted successfully');
     }
 
     // Control products
@@ -203,7 +264,7 @@ class AdminPanelController extends Controller
     function addProductGet(Request $request) {
         $Category = new Category();
 
-        $category_data = $Category->all()->reverse();
+        $category_data = $Category->where('rank', 'low')->get()->reverse();
         
         return view('admin.products.addProduct', ['category_data' =>$category_data]);
     }
@@ -220,7 +281,7 @@ class AdminPanelController extends Controller
         $validated = $validator->validated();
 
         if (!isset($validated['slug']) || $validated['slug'] == null) {
-            $validated['slug'] = Str::of($validated['product_name'])->slug('-')->value;
+            $validated['slug'] = str($validated['product_name'])->slug('-');
         }
 
         try {
@@ -232,12 +293,13 @@ class AdminPanelController extends Controller
             $Product->slug = $validated['slug'];
             $Product->price = $validated['price'];
             $Product->description = $validated['description'];
-            $Product->category_id = $validated['category'];
-
+            $Product->category = $validated['category'];
+            
             $Product->save();
-
+            
             $Storage->product_id = $Product->id;
             $Storage->quantity = 0;
+            // dd($Product);
 
             $Storage->save();
 
@@ -245,10 +307,10 @@ class AdminPanelController extends Controller
             
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('adminAddProductGet');
+            return back()->with('success', 'Product did not created');
         }
 
-        return redirect()->route('adminShowAllProductsGet');
+        return redirect()->route('adminShowAllProductsGet')->with('success', 'Created successfully');
     }
 
     function updateProductGet(Request $request, $product_id) {
@@ -298,7 +360,7 @@ class AdminPanelController extends Controller
             $product_data->product_name = $validated['product_name'];
             $product_data->price = $validated['price'];
             $product_data->slug = $validated['slug'];
-            $product_data->category_id = $validated['category_id'];
+            $product_data->category = $validated['category_id'];
             $product_data->description = $validated['description'];
 
             $product_data->save();
@@ -308,7 +370,7 @@ class AdminPanelController extends Controller
             DB::rollBack();
         }
         
-        return redirect()->route('adminShowAllProductsGet');
+        return redirect()->route('adminShowAllProductsGet')->with('success', 'Updated successfully');
     }
 
     function deleteProductDelete(Request $request, $product_id) {
@@ -333,7 +395,7 @@ class AdminPanelController extends Controller
             DB::rollBack();
         }
 
-        return redirect()->route('adminShowAllProductsGet');
+        return redirect()->route('adminShowAllProductsGet')->with('success', 'Deleted successfully');
     }
 
     // Control storage
@@ -371,6 +433,6 @@ class AdminPanelController extends Controller
 
         $storage_data->save();
 
-        return redirect()->route('adminShowAllStorageGet');
+        return redirect()->route('adminShowAllStorageGet')->with('success', 'Updated successfully');
     }
 }

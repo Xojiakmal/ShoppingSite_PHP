@@ -28,7 +28,7 @@ class CheckAuth
             if (!$did_login) {
                 return $next($request);
             }
-            return redirect()->route('main');
+            return redirect()->route('mainPage');
         }
     }
 }
