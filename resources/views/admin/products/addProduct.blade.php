@@ -3,9 +3,9 @@
 @section('section')
     <form action="{{ route('adminAddProductPost') }}" method='POST'>
         @csrf
-        <input type="text" name="product_name" placeholder="Product name"><br>
-        <input type="text" name="slug" placeholder="Slug"><br>
-        <input type="tel" name="price" placeholder="Price"> $ <br>
+        <input type="text" name="product_name" value="{{ old('product_name') }}" placeholder="Product name"><br>
+        <input type="text" name="slug" value="{{ old('slug') }}" placeholder="Slug"><br>
+        <input type="tel" name="price" value="{{ old('price') }}" placeholder="Price"> $ <br>
         Category:
         <select name="category">
             <option value="">...</option>
@@ -15,7 +15,7 @@
             @endforeach
             @endisset
         </select><br>
-        <textarea name="description" placeholder="description"></textarea><br>
+        <textarea name="description" value="{{ old('description') }}" placeholder="description"></textarea><br>
         <input type="submit" value="Save">
     </form>
     @if(session('success'))

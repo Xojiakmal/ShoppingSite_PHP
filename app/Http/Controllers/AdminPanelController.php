@@ -232,7 +232,7 @@ class AdminPanelController extends Controller
             $category_data = $Category->find($category_id);
 
             if (isset($category_data->id)) {
-                $product_data = $Product->where('category', $category_data->slug)->get();
+                $product_data = $Product->where('category', 'like', '%' . $category_data->slug . '%')->get();
                 $storage_data = $Storage->whereIn('product_id', $product_data->modelKeys())->get();
 
                 if ($storage_data->modelKeys() != null) {
@@ -288,18 +288,22 @@ class AdminPanelController extends Controller
             DB::beginTransaction();
             $Product = new Product();
             $Storage = new Storage();
+            $Category = new Category();
+
+            $category_low = $Category->where('id', $validated['category'])->where('rank', 'low')->first();
+            $category_medium = $Category->where('id', $category_low->parent_id)->where('rank', 'medium')->first();
+            $category_hight = $Category->where('id', $category_medium->parent_id)->where('rank', 'hight')->first();
 
             $Product->product_name = $validated['product_name'];
             $Product->slug = $validated['slug'];
             $Product->price = $validated['price'];
             $Product->description = $validated['description'];
-            $Product->category = $validated['category'];
+            $Product->category = $category_hight->slug."/".$category_medium->slug."/".$category_low->slug;
             
             $Product->save();
             
             $Storage->product_id = $Product->id;
             $Storage->quantity = 0;
-            // dd($Product);
 
             $Storage->save();
 

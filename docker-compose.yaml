@@ -1,0 +1,49 @@
+services:
+
+  app:
+    build: .
+    container_name: laravel_app
+
+    volumes:
+      - ./:/var/www
+
+    ports:
+      - "8000:8000"
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+    depends_on:
+      - db
+      - search-engine
+
+  db:
+    image: postgres:17
+    container_name: postgres
+
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  search-engine:
+    image: getmeili/meilisearch:v1.15
+    container_name: meilisearch
+
+    ports:
+      - '7700:7700'
+
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY}
+      MEILI_NO_ANALYTICS: 'true'
+  # volumes:
+  #   - meili_data:/meili_data
+
+volumes:
+  postgres_data:
+    driver: local
+  # meili_data:
+  #   driver: local

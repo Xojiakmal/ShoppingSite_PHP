@@ -9,7 +9,10 @@ use App\Http\Middleware\CheckAdminPermission;
 use App\Http\Middleware\CheckSuperadminPermission;
 
 
-Route::get('/', [BasicPagesController::class, 'mainPage']);
+Route::get('/', [BasicPagesController::class, 'mainPage'])->name('mainPage');
+
+Route::get('/search', [BasicPagesController::class, 'searchPageGet'])->name('searchPageGet');
+Route::get('/category/{slug?}', [BasicPagesController::class, 'searchCategoryPageGet'])->name('searchCategoryPageGet');
 
 Route::middleware(CheckAuth::class)->group(function () {
     // Authentication
