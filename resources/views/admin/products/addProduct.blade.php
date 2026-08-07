@@ -1,7 +1,7 @@
 @extends('admin.layout')
 
 @section('section')
-    <form action="{{ route('adminAddProductPost') }}" method='POST'>
+    <form action="{{ route('adminAddProductPost') }}" method='POST' enctype="multipart/form-data">
         @csrf
         <input type="text" name="product_name" value="{{ old('product_name') }}" placeholder="Product name"><br>
         <input type="text" name="slug" value="{{ old('slug') }}" placeholder="Slug"><br>
@@ -15,6 +15,7 @@
             @endforeach
             @endisset
         </select><br>
+        Image: <input type="file" name="img"><br>
         <textarea name="description" value="{{ old('description') }}" placeholder="description"></textarea><br>
         <input type="submit" value="Save">
     </form>

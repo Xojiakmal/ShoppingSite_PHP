@@ -12,7 +12,13 @@ use App\Http\Middleware\CheckSuperadminPermission;
 Route::get('/', [BasicPagesController::class, 'mainPage'])->name('mainPage');
 
 Route::get('/search', [BasicPagesController::class, 'searchPageGet'])->name('searchPageGet');
+
 Route::get('/category/{slug?}', [BasicPagesController::class, 'searchCategoryPageGet'])->name('searchCategoryPageGet');
+
+Route::get('/product/basket', [BasicPagesController::class, 'showBasketPageGet'])->name('showBasketPageGet');
+Route::post('/product/basket', [BasicPageController::class, 'confirmationBasketPost'])->name('confirmationBasketPost');
+Route::get('/product/{slug}', [BasicPagesController::class, 'showProductPageGet'])->name('showProductPageGet');
+Route::get('/product/basket/add', [BasicPagesController::class, 'addProductToBasketPageGet'])->name('addProductToBasketPageGet');
 
 Route::middleware(CheckAuth::class)->group(function () {
     // Authentication

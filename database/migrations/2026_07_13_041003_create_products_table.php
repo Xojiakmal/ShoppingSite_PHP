@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('category');
             $table->integer('price');
             $table->string('slug')->unique();
+            $table->string('image_path');
             $table->timestamps();
         });
     }

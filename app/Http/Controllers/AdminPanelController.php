@@ -7,11 +7,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-// use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Storage;
+use Illuminate\Support\Facades\Storage as StorageBase;
+
 
 class AdminPanelController extends Controller
 {
@@ -235,6 +236,12 @@ class AdminPanelController extends Controller
                 $product_data = $Product->where('category', 'like', '%' . $category_data->slug . '%')->get();
                 $storage_data = $Storage->whereIn('product_id', $product_data->modelKeys())->get();
 
+                foreach($product_data as $prod) {
+                    if (isset($prod->image_path) && StorageBase::disk('public')->exists($prod->image_path)) {
+                        StorageBase::disk('public')->delete($prod->image_path);
+                    }
+                }
+
                 if ($storage_data->modelKeys() != null) {
                     $Storage->whereIn('id', $storage_data->modelKeys())->delete();
                 }
@@ -275,7 +282,8 @@ class AdminPanelController extends Controller
             'price' =>'required|int',
             'category' =>'required|int',
             'description' =>'nullable',
-            'slug' =>'nullable|unique:products'
+            'slug' =>'nullable',
+            'img' =>'nullable|image|max:2048'
         ]);
 
         $validated = $validator->validated();
@@ -299,18 +307,34 @@ class AdminPanelController extends Controller
             $Product->price = $validated['price'];
             $Product->description = $validated['description'];
             $Product->category = $category_hight->slug."/".$category_medium->slug."/".$category_low->slug;
+
+            if (isset($validated['img']) && $request->hasFile('img')) {
+                $image_path = $request->file('img')->store('product_images', 'public');
+            }
+            else {
+                $image_path = '';
+            }
+            
+            $Product->image_path = $image_path;
             
             $Product->save();
+
+            $Product->slug .= "-" . $Product->id;
             
             $Storage->product_id = $Product->id;
             $Storage->quantity = 0;
 
             $Storage->save();
+            $Product->save();
 
             DB::commit();
             
         } catch (\Exception $e) {
             DB::rollBack();
+
+            if (isset($image_path) && StorageBase::disk('public')->exists($image_path)) {
+                StorageBase::disk('public')->delete($image_path);
+            }
             return back()->with('success', 'Product did not created');
         }
 
@@ -349,11 +373,11 @@ class AdminPanelController extends Controller
             'price' =>'required|integer',
             'slug' =>'required|string',
             'category_id' =>'required|integer',
-            'description' =>'string|nullable'
+            'description' =>'string|nullable',
+            'img' =>'nullable|image'
         ]);
         $validated = $validator->validated();
-        // dd($validator);
-
+        // $StorageBase = new \Illuminate\Support\Facades\Storage;
 
         try {
             DB::beginTransaction();
@@ -367,11 +391,26 @@ class AdminPanelController extends Controller
             $product_data->category = $validated['category_id'];
             $product_data->description = $validated['description'];
 
+            $image_path = $product_data->image_path;
+            if(isset($validated['img']) && $request->hasFile('img')) {
+                if (StorageBase::disk('public')->exists($image_path)) {
+                    StorageBase::disk('public')->delete($image_path);
+                }
+
+                $image_path = $request->file('img')->store('product_images', 'public');
+            }
+            $product_data->image_path = $image_path;
+
             $product_data->save();
 
             DB::commit();
         } catch (\Exception $th) {
             DB::rollBack();
+
+            if (isset($image_path) && StorageBase::disk('public')->exists($image_path)) {
+                StorageBase::disk('public')->delete($image_path);
+            }
+            return back();
         }
         
         return redirect()->route('adminShowAllProductsGet')->with('success', 'Updated successfully');
@@ -391,8 +430,15 @@ class AdminPanelController extends Controller
             $product_data = $Product->find($product_id);
             $storage_data = $Storage->where('product_id', $product_data->id)->first();
 
+            $image_path = $product_data->image_path;
+
             $storage_data->delete();
             $product_data->delete();
+
+            // dd($product_data);
+            if (isset($image_path) && StorageBase::disk('public')->exists($image_path)) {
+                StorageBase::disk('public')->delete($image_path);
+            }
 
             DB::commit();
         } catch (\Exception $th) {

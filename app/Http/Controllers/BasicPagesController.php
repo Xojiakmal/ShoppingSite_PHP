@@ -34,6 +34,7 @@ class BasicPagesController extends Controller
 
     function searchPageGet(Request $request) {
         $Product = new Product();
+        $Category = new Category();
 
         $validator = Validator::make($request->query(), [
             's' =>'nullable|string',
@@ -43,9 +44,9 @@ class BasicPagesController extends Controller
             'sort_price' =>'nullable|in:asc,desc'
         ]);
 
+        $filters = $validator->validated();
         $data = 0;
         $search = $filters['s'] ?? '';
-        $filters = $validator->validated();
 
         $product_data = $Product->search($search, function ($meilisearch, $query, $options) use ($filters) {
 
@@ -68,10 +69,32 @@ class BasicPagesController extends Controller
 
         })->get()->reverse();
 
-        // dd($product_data);
+        $categories_data = $Category->where('parent_id', null)->get()->map(function ($cate) {
+            return [
+                'category_name' =>$cate->category_name,
+                'slug' =>$cate->slug,
+                'children' =>$cate->children->map(function ($child_cate) {
+                    return [
+                        'category_name' => $child_cate->category_name,
+                        'slug' =>$child_cate->slug,
+                        'children' =>$child_cate->children->map(function ($grandson_cate) {
+                            return [
+                                'category_name' => $grandson_cate->category_name,
+                                'slug' =>$grandson_cate->slug,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+        });
+
+        // dd($filters);
         return view('main.search.main', [
             'product_data' =>$product_data,
             'filters' =>$filters,
+            'sidebar_data' =>[
+                'category_list' =>$categories_data,
+            ]
         ]);
     }
 
@@ -79,16 +102,97 @@ class BasicPagesController extends Controller
         $Category = new Category();
         $Product = new Product();
 
-        if ($slug != null) {
-            $product_data = $Product->where('category', 'like', '%' . $slug . '%');
+        $categories_data = $Category->where('parent_id', null)->get()->map(function ($cate) {
+            return [
+                'category_name' =>$cate->category_name,
+                'slug' =>$cate->slug,
+                'children' =>$cate->children->map(function ($child_cate) {
+                    return [
+                        'category_name' => $child_cate->category_name,
+                        'slug' =>$child_cate->slug,
+                        'children' =>$child_cate->children->map(function ($grandson_cate) {
+                            return [
+                                'category_name' => $grandson_cate->category_name,
+                                'slug' =>$grandson_cate->slug,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+        });
+
+        $product_data = $Product->where('category', 'like', '%' . $slug . '%')->get()->reverse();
+
+        return view('main.search.category', [
+            'category_list' =>$categories_data,
+            'products_data' =>$product_data,
+        ]);
+    }
+
+    function showProductPageGet(Request $request, $slug) {
+        $Product = new Product();
+
+        $product_data = $Product->where('slug', $slug)->first();
+
+        if ($product_data == null) {
+            return back();
+        }   
+
+        // dd($product_data);
+        return view('main.product.show', [
+            'product_data' =>$product_data,
+
+        ]);
+    }
+
+    function addProductToBasketPageGet(Request $request) {
+        $validator = Validator::make($request->query(), [
+            'product_slug' =>'required|string'
+        ]);
+
+        $validated = $validator->validated();
+        $Storage = new Storage();
+        $Product = new Product();
+
+        $product_data = $Product->where('slug', $validated['product_slug'])->first();
+
+        if (!isset($product_data->id)) {
+            return back()->with('basket_message', 'Not added');
         }
-        else {
-            
+
+        $quantity = $Storage->where('product_id', $product_data->id);
+
+        if ($quantity <= 0) {
+            return back()->with('basket_message', 'Not added');
         }
 
-        dd($slug);
+        $session_data = [];
+        if(session()->has('basket')) {
+            $session_data = session()->get('basket');
+        }
+        if(!in_array($validated['product_slug'], array_keys($session_data))) {
+            $session_data[$validated['product_slug']] = 0;
+        }
 
+        $session_data[$validated['product_slug']] += 1;
 
-        return view('main.search.category');
+        session(['basket' => $session_data]);
+
+        return back()->with('basket_message', 'Added');
+    }
+
+    function showBasketPageGet(Request $request) {
+        $basket_data = [];
+        if (session()->has('basket')) {
+            $basket_data = session()->get('basket');
+        }
+
+        return view('main.product.basket', [
+            'basket_data' =>$basket_data
+        ]);
+    }
+
+    function confirmationBasketPost(Request $request) {
+
     }
 }

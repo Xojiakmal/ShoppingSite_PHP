@@ -18,7 +18,7 @@
         <ul>
         @if(isset($categories_data) && $categories_data->modelKeys())
             @foreach($categories_data as $cate)
-            <li><a href="">{{ $cate->category_name }}</a></li>
+            <li><a href="{{ route('searchCategoryPageGet', [$cate->slug]) }}">{{ $cate->category_name }}</a></li>
             @endforeach
         @else
             <li>Empty</li>

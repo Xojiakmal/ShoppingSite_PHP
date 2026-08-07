@@ -1,7 +1,7 @@
 @extends('admin.layout')
 
 @section('section')
-    <form action="{{ route('adminUpdateProductPut', ['product_id'=>$product_data['id']]) }}" method="post">
+    <form action="{{ route('adminUpdateProductPut', ['product_id'=>$product_data['id']]) }}" enctype="multipart/form-data" method="post">
         @csrf
         @method('PUT')
         <input type="text" name="product_name" value="{{ $product_data->product_name }}" placeholder="Product name"><br>
@@ -16,6 +16,7 @@
                 @endif
             @endforeach
         </select><br>
+        Image: <input type="file" name="img"><br>
         <textarea name="description">{{ $product_data->description }}</textarea>
 
         <input type="submit" value="Change">
